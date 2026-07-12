@@ -48,6 +48,8 @@ const FUJI_TAGS = {
   0x1400: 'DynamicRange',
   0x1401: 'FilmMode',
   0x1402: 'DynamicRangeSetting',
+  0x1403: 'DevelopmentDynamicRange',
+  0x140B: 'AutoDynamicRange',
   0x1436: 'ImageGeneration',
   0x1443: 'DRangePriority',
   0x1444: 'DRangePriorityAuto',
@@ -85,6 +87,7 @@ const MAPS = {
   shutterType: {0:'Mechanical',1:'Electronic',2:'Electronic (Long Shutter)',3:'Electronic Front Curtain'},
   dynamicRange: {1:'Standard',3:'Wide'},
   dynamicRangeSetting: {0x0:'Auto',0x1:'Manual',0x100:'DR100',0x200:'DR200 / Wide1 (230%)',0x201:'DR400 / Wide2 (400%)'},
+  developmentDynamicRange: {100:'DR100',200:'DR200',230:'DR200 / Wide1 (230%)',400:'DR400'},
   imageGeneration: {0:'Original Image',1:'Re-developed from RAW'},
   dRangePriority: {0:'Auto',1:'Fixed'},
   dRangePriorityAuto: {1:'Weak',2:'Strong',3:'Plus'},
@@ -325,12 +328,14 @@ function buildRecipeItems(m) {
   const grain = decodeGrain(m.GrainEffectRoughness, m.GrainEffectSize);
   const toneCurve = decodeToneCurve(m.HighlightTone, m.ShadowTone);
   const mono = decodeMonochromeColor(m.BWAdjustment, m.BWMagentaGreen);
+  const dr = decodeDynamicRangeDetailed(m);
 
   return [
     { label:'필름 시뮬레이션', value: decodeMap(m.FilmMode, MAPS.filmMode) },
     { label:'화이트 밸런스', value: wb },
     { label:'WB 시프트', value: wbShift },
-    { label:'다이내믹 레인지', value: decodeDynamicRange(m.DynamicRangeSetting, m.DynamicRange, m.DRangePriority, m.DRangePriorityAuto, m.DRangePriorityFixed) },
+    { label:'DR 설정 방식', value: dr.mode },
+    { label:'적용 DR 값', value: dr.applied },
     { label:'톤 곡선', value: toneCurve },
     { label:'컬러 / 모노크롬', value: decodeMap(m.Color, MAPS.color) },
     { label:'모노크롬 색상', value: mono },
@@ -354,6 +359,7 @@ function buildExtraItems(maker, file) {
       { label:'이미지 생성', value: decodeMap(maker.ImageGeneration, MAPS.imageGeneration) },
       { label:'Fuji Model', value: maker.FujiModel || maker.FujiModel2 || '—' },
       { label:'DR Priority', value: decodeDynamicRangePriority(maker.DRangePriority, maker.DRangePriorityAuto, maker.DRangePriorityFixed) },
+      { label:'DR Raw', value: formatDRRaw(maker) },
       { label:'플래시 모드', value: maker.FujiFlashMode != null ? String(maker.FujiFlashMode) : '—' }
     );
   } else {
@@ -393,23 +399,76 @@ function decodeToneCurve(highlight, shadow){
 }
 function decodeTone(v){
   if (v == null) return '—';
-  const map = { '-64':'+4', '-48':'+3', '-32':'+2', '-16':'+1', '0':'0', '16':'-1', '32':'-2' };
-  return map[String(v)] ?? String(v);
+
+  // Fujifilm MakerNote tone values are stored as raw internal values.
+  // Some files expose raw 24 / -24 values. On tested 5th-gen style JPEGs,
+  // dividing by 12 and reversing the sign maps them to the camera display scale.
+  const raw12Map = {
+    '-48': '+4', '-36': '+3', '-24': '+2', '-12': '+1',
+    '0': '0', '12': '-1', '24': '-2', '36': '-3', '48': '-4'
+  };
+  if (raw12Map[String(v)] != null) return raw12Map[String(v)];
+
+  const raw16Map = {
+    '-64': '+4', '-48': '+3', '-32': '+2', '-16': '+1',
+    '0': '0', '16': '-1', '32': '-2', '48': '-3', '64': '-4'
+  };
+  if (raw16Map[String(v)] != null) return raw16Map[String(v)];
+
+  if (Math.abs(v) <= 48 && v % 6 === 0) {
+    const display = -v / 12;
+    return signedNum(display);
+  }
+
+  if (Math.abs(v) % 16 === 0) {
+    const display = -v / 16;
+    return signedNum(display);
+  }
+
+  return `raw ${v}`;
 }
-function decodeDynamicRange(setting, basic, pr, pra, prf){
-  let parts = [];
-  if (setting != null) parts.push(decodeMap(setting, MAPS.dynamicRangeSetting));
-  else if (basic != null) parts.push(decodeMap(basic, MAPS.dynamicRange));
-  const prText = decodeDynamicRangePriority(pr, pra, prf);
-  if (prText !== '—') parts.push(prText);
-  return parts.length ? parts.join(' / ') : '—';
+
+function decodeDynamicRangeDetailed(m){
+  const mode = decodeMap(m.DynamicRangeSetting, MAPS.dynamicRangeSetting);
+
+  let applied = '—';
+  if (m.DevelopmentDynamicRange != null) {
+    applied = MAPS.developmentDynamicRange[m.DevelopmentDynamicRange] || `${m.DevelopmentDynamicRange}%`;
+  } else if (m.AutoDynamicRange != null) {
+    applied = MAPS.developmentDynamicRange[m.AutoDynamicRange] || `${m.AutoDynamicRange}%`;
+  } else if (m.DynamicRangeSetting === 0x100) {
+    applied = 'DR100';
+  } else if (m.DynamicRangeSetting === 0x200) {
+    applied = 'DR200';
+  } else if (m.DynamicRangeSetting === 0x201) {
+    applied = 'DR400';
+  } else if (m.DynamicRange != null) {
+    applied = decodeMap(m.DynamicRange, MAPS.dynamicRange);
+  }
+
+  const priority = decodeDynamicRangePriority(m.DRangePriority, m.DRangePriorityAuto, m.DRangePriorityFixed);
+  if (priority !== '—') {
+    applied = applied === '—' ? `DR Priority: ${priority}` : `${applied} / DR Priority: ${priority}`;
+  }
+
+  return { mode, applied };
 }
+
 function decodeDynamicRangePriority(pr, pra, prf){
   if (pr == null) return '—';
   const mode = decodeMap(pr, MAPS.dRangePriority);
   if (pr === 0 && pra != null) return `${mode} (${decodeMap(pra, MAPS.dRangePriorityAuto)})`;
   if (pr === 1 && prf != null) return `${mode} (${decodeMap(prf, MAPS.dRangePriorityFixed)})`;
   return mode;
+}
+
+function formatDRRaw(m){
+  const parts = [];
+  if (m.DynamicRangeSetting != null) parts.push(`Setting:${m.DynamicRangeSetting}`);
+  if (m.DevelopmentDynamicRange != null) parts.push(`Development:${m.DevelopmentDynamicRange}`);
+  if (m.AutoDynamicRange != null) parts.push(`Auto:${m.AutoDynamicRange}`);
+  if (m.DynamicRange != null) parts.push(`Basic:${m.DynamicRange}`);
+  return parts.length ? parts.join(' / ') : '—';
 }
 function decodeMonochromeColor(wc, mg){
   if (wc == null && mg == null) return '—';
