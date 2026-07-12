@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1115">
+  <meta name="description" content="FUJIFILM original JPEG metadata and recipe reader">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <title>Fuji JPEG Recipe Reader</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div class="hero-badge">FUJI JPEG RECIPE READER</div>
+      <h1>Fuji JPEG Recipe Reader</h1>
+      <p class="hero-text">
+        후지 원본 JPEG를 불러오면 기본 EXIF 정보와 가능한 범위의 Fujifilm MakerNote 레시피 값을 읽어주는 로컬 웹앱입니다.
+      </p>
+      <div class="hero-note">
+        <strong>중요:</strong> 카메라 원본 JPEG 기준입니다. Lightroom, Photoshop, 메신저, SNS를 거친 JPEG는 레시피 값이 누락될 수 있습니다.
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="panel uploader-panel">
+        <div class="panel-title-row">
+          <h2>JPEG 불러오기</h2>
+          <button id="sampleBtn" class="ghost-btn" type="button">안내 보기</button>
+        </div>
+
+        <label for="fileInput" class="upload-drop" id="dropZone">
+          <input id="fileInput" type="file" accept="image/jpeg,.jpg,.jpeg" hidden>
+          <div class="upload-icon">⤴</div>
+          <div class="upload-title">후지 원본 JPEG 선택</div>
+          <div class="upload-sub">탭해서 선택하거나 여기에 드래그하세요</div>
+        </label>
+
+        <div class="quick-note-list">
+          <div>• 서버 업로드 없이 기기에서만 분석합니다.</div>
+          <div>• 원본 Fujifilm JPEG일수록 결과가 정확합니다.</div>
+          <div>• 편집본 JPEG는 일반 EXIF만 일부 표시될 수 있습니다.</div>
+        </div>
+
+        <div id="statusCard" class="status-card idle">
+          <div class="status-title">대기 중</div>
+          <div class="status-text">JPEG 파일을 선택하면 분석 결과가 아래에 표시됩니다.</div>
+        </div>
+      </section>
+
+      <section class="layout-grid">
+        <div class="left-col">
+          <section class="panel preview-panel">
+            <div class="panel-title-row">
+              <h2>미리보기</h2>
+              <span id="fileName" class="muted">선택된 파일 없음</span>
+            </div>
+            <div class="preview-wrap">
+              <img id="previewImage" alt="preview" hidden>
+              <div id="previewPlaceholder" class="preview-placeholder">이미지를 불러오면 여기에 표시됩니다.</div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>카메라 / 촬영 정보</h2>
+            <div class="kv-grid" id="cameraInfo"></div>
+          </section>
+
+          <section class="panel">
+            <h2>노출 정보</h2>
+            <div class="kv-grid" id="exposureInfo"></div>
+          </section>
+        </div>
+
+        <div class="right-col">
+          <section class="panel accent-panel">
+            <h2>레시피 분석 결과</h2>
+            <div class="kv-grid" id="recipeInfo"></div>
+          </section>
+
+          <section class="panel">
+            <h2>추가 메타데이터</h2>
+            <div class="kv-grid" id="extraInfo"></div>
+          </section>
+
+          <section class="panel">
+            <h2>주의사항</h2>
+            <ul class="warning-list">
+              <li>이 앱은 <strong>원본 Fujifilm JPEG</strong> 분석용입니다.</li>
+              <li>편집 소프트웨어를 거친 JPEG는 MakerNote가 손실되어 레시피 값이 비어 있을 수 있습니다.</li>
+              <li>기종과 세대에 따라 일부 태그는 표시되지 않거나 다르게 저장될 수 있습니다.</li>
+              <li>분석은 브라우저 안에서만 수행되며 사진 파일은 외부로 전송되지 않습니다.</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="helpDialog">
+    <div class="dialog-content">
+      <h3>이 앱이 읽을 수 있는 정보</h3>
+      <ul>
+        <li>카메라 모델, 렌즈, 셔터속도, 조리개, ISO, 초점거리</li>
+        <li>필름 시뮬레이션, 화이트밸런스, WB 시프트</li>
+        <li>다이내믹 레인지, 톤 곡선, 컬러, 샤프니스</li>
+        <li>그레인 효과, 컬러크롬 효과, 컬러크롬 FX 블루</li>
+        <li>고감도 노이즈 감소, 명료도(Clarity) 등</li>
+      </ul>
+      <p class="dialog-note">
+        일부 항목은 카메라 기종 또는 파일 상태에 따라 없을 수 있습니다.
+      </p>
+      <button id="closeDialogBtn" class="primary-btn" type="button">닫기</button>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
