@@ -19,3 +19,10 @@ v1.1 수정
 - 원본 Fujifilm JPEG 기준으로 가장 정확합니다.
 - Lightroom, Photoshop, 메신저, SNS를 거친 JPEG는 MakerNote가 제거되어 레시피 값이 누락될 수 있습니다.
 - 기종과 펌웨어에 따라 일부 태그의 raw 값 표현이 다를 수 있습니다.
+
+v1.2 수정
+---------
+- 필름 시뮬레이션 표시명을 현재 Fujifilm 카메라 메뉴에서 보는 이름 기준으로 정리
+- Fujichrome 표시를 Velvia / VIVID로 변경
+- CLASSIC Negative -> CLASSIC Neg. 등 공식 표기 스타일에 가깝게 수정
+- MONOCHROME / ACROS / SEPIA 계열은 FilmMode가 아니라 Color 태그에 기록되는 경우를 우선 판별하도록 수정
