@@ -60,12 +60,34 @@ const FUJI_TAGS = {
 
 const MAPS = {
   filmMode: {
-    0x000: 'Provia / Standard', 0x100: 'Portrait', 0x110: 'Portrait Enhanced Saturation',
-    0x120: 'Astia / Soft', 0x130: 'Portrait Increased Sharpness', 0x200: 'Fujichrome',
-    0x300: 'Portrait Ex', 0x400: 'Velvia / Vivid', 0x500: 'Pro Neg. Std',
-    0x501: 'Pro Neg. Hi', 0x600: 'Classic Chrome', 0x700: 'Eterna',
-    0x800: 'Classic Negative', 0x900: 'Eterna Bleach Bypass', 0xA00: 'Nostalgic Neg.',
-    0xB00: 'Reala ACE'
+    // Display names normalized to current Fujifilm Film Simulation menu names.
+    0x000: 'PROVIA / STANDARD',
+    0x100: 'PROVIA / STANDARD',
+    0x110: 'PROVIA / STANDARD',
+    0x120: 'ASTIA / SOFT',
+    0x130: 'ASTIA / SOFT',
+    0x200: 'Velvia / VIVID',
+    0x300: 'ASTIA / SOFT',
+    0x400: 'Velvia / VIVID',
+    0x500: 'PRO Neg. Std',
+    0x501: 'PRO Neg. Hi',
+    0x600: 'CLASSIC CHROME',
+    0x700: 'ETERNA / Cinema',
+    0x800: 'CLASSIC Neg.',
+    0x900: 'ETERNA BLEACH BYPASS',
+    0xA00: 'NOSTALGIC Neg.',
+    0xB00: 'REALA ACE'
+  },
+  bwFilmSimulation: {
+    0x300: 'MONOCHROME',
+    0x301: 'MONOCHROME + R FILTER',
+    0x302: 'MONOCHROME + Ye FILTER',
+    0x303: 'MONOCHROME + G FILTER',
+    0x310: 'SEPIA',
+    0x500: 'ACROS',
+    0x501: 'ACROS + R FILTER',
+    0x502: 'ACROS + Ye FILTER',
+    0x503: 'ACROS + G FILTER'
   },
   whiteBalance: {
     0x0:'Auto',0x1:'Auto (White Priority)',0x2:'Auto (Ambiance Priority)',0x100:'Daylight',0x200:'Cloudy',
@@ -331,7 +353,7 @@ function buildRecipeItems(m) {
   const dr = decodeDynamicRangeDetailed(m);
 
   return [
-    { label:'필름 시뮬레이션', value: decodeMap(m.FilmMode, MAPS.filmMode) },
+    { label:'필름 시뮬레이션', value: decodeFilmSimulation(m) },
     { label:'화이트 밸런스', value: wb },
     { label:'WB 시프트', value: wbShift },
     { label:'DR 설정 방식', value: dr.mode },
@@ -371,6 +393,18 @@ function buildExtraItems(maker, file) {
 function formatDimensions(w,h){ return w && h ? `${w} × ${h}` : '—'; }
 function formatFileSize(bytes){ if(bytes<1024) return `${bytes} B`; if(bytes<1048576) return `${(bytes/1024).toFixed(1)} KB`; return `${(bytes/1048576).toFixed(2)} MB`; }
 function decodeMap(v, map){ return v == null ? '—' : (map[v] ?? String(v)); }
+function decodeFilmSimulation(m){
+  // Monochrome/ACROS/SEPIA are often encoded through the Color/Saturation tag
+  // rather than FilmMode, so check that first.
+  if (m && m.Color != null && MAPS.bwFilmSimulation[m.Color]) {
+    return MAPS.bwFilmSimulation[m.Color];
+  }
+  if (m && m.FilmMode != null) {
+    return MAPS.filmMode[m.FilmMode] || `Unknown FilmMode (${m.FilmMode})`;
+  }
+  return '—';
+}
+
 function decodeWhiteBalance(mode, kelvin){
   if (mode == null) return '—';
   const base = decodeMap(mode, MAPS.whiteBalance);
